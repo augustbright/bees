@@ -2,68 +2,97 @@ extends CharacterBody3D
 
 const NectarSource = preload("res://nectar_source.gd")
 const Hive = preload("res://hive.gd")
+const FlightSettings = preload('res://fight_settings.gd')
 
-var anchor_position: Vector3
+var hive: Hive = null
+var anchor: Vector3:
+	set(position):
+		anchor = position
+		$Anchor.position = anchor
+		arrived_to_anchor = false
+		#hung = false
+		#nectar_landed = false
+		target_nectar_source = null
+		spin_count = 0
 
-var arrived = true
-const arrived_threshold = 1
-const TRAVEL_MAX_SPEED = 7
-const max_speed = 7
-const TRAVEL_HEIGHT = 1
+####	TRAVELING FLIGHT
+var arrived_to_anchor = false
+#var hung = false
 
-var fly_destination: Vector3
+var current_destination: Vector3:
+	set(value):
+		current_destination = value
+		$FlyDestination.position = value
+
+var current_travel_destination = Vector3.ZERO
+
 var fly_velocity = Vector3.ZERO
-const fly_acceleration = 30
-const DEFAULT_DUMP = 30
-const destination_threshold = 1
-const fly_segment_length = 3
-const max_deviation = 1
 
-var hung = false
-const hang_threshold = 0.2
-const HANG_MAX_SPEED = 3
-const HANG_ATTEMPT_TIME = 3
+var TRAVEL_FLIGHT_SETTINGS = FlightSettings.new(30, 30, 7, 1)
+var ACCURATE_FLIGHT_SETTINGS = FlightSettings.new(30, 30, 3, 0.2)
+var LANDING_FLIGHT_SETTINGS = FlightSettings.new(30, 30, 3, 0.2)
+var SPIN_FLIGHT_SETTINGS = FlightSettings.new(30, 30, 5, 0.2)
+var EIGHT_FLIGHT_SETTINGS = FlightSettings.new(30, 100, 5, 0.2)
 
+const TRAVEL_SEGMENT_LENGTH = 3
+const TRAVEL_HEIGHT = 1
+const TRAVEL_DEVIATION = 1
+
+####	ORIENTATION FLIGHT
 var spin_count = 0
-const SPIN_THRESHOLD = 0.2
 const SPIN_REQUIRED = 10
-const spin_radius = 0.5
-const SPIN_MAX_SPEED = 5
+const SPIN_RADIUS = 1
 
 var eight_count = 0
-const EIGHT_THRESHOLD = 0.2
 const EIGHT_REQUIRED = 10
-const EIGHT_MAX_SPEED = 5
-const EIGHT_DUMP = 100
 const EIGHT_HEIGHT = 2
 const EIGHT_RADIUS = 0.5
 
-enum AnchorMode {
-	HANG, ORIENT, EXPLORE
-}
-var anchor_mode: AnchorMode
+enum AnchorMode { HANG, ORIENT, EXPLORE }
+var anchor_mode: AnchorMode:
+	set(mode):
+		anchor_mode = mode
+		match anchor_mode:
+			AnchorMode.HANG:
+				#hung = false
+				$Anchor/Label.text = 'Hang'
+			AnchorMode.EXPLORE:
+				$Anchor/Label.text = 'Explore'
+			AnchorMode.ORIENT:
+				spin_count = 0
+				eight_count = 0
+				$Anchor/Label.text = 'Orient'
 
+####	NECTAR EXPLORING
 var vision_nectar: Array[NectarSource]
 var memory_nectar := {}
 var unvisited_nectar := {}
 var visited_nectar := {}
 
-var explore_destination = Vector3.ZERO
 var EXPLORE_SEGMENT_LENGTH = 3
 var EXPLORE_RADIUS = 100
 
-var NECTAR_CAPACITY = 50
-var nectar = 0
-var nectar_source: NectarSource = null
-var nectar_landed = false
+####	NECTAR GATHERING
+var NECTAR_CAPACITY = 3
+var nectar = 0:
+	set(value):
+		nectar = value
+		$NectarLabel.text = str(nectar)
+		if nectar > 0:
+			$NectarLabel.show()
+		else:
+			$NectarLabel.hide()
+
+var target_nectar_source: NectarSource = null
+#var nectar_landed = false
 const PICK_NECTAR_TIME = 3
 var pick_nectar_timeout = 0
 
 # Called when the node enters the scene tree for the first time.
 func _ready():
-	set_anchor_mode(AnchorMode.HANG)
-	set_anchor(position)
-	set_fly_destination(position)
+	anchor_mode = AnchorMode.HANG
+	anchor = position
+	current_destination = position
 
 func _process(delta):
 	var mesh = $Vision/DebugMesh.mesh as ImmediateMesh
@@ -77,124 +106,185 @@ func _process(delta):
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _physics_process(delta):
-	if arrived:
+	if has_to_go_home():
+		process_go_home(delta)
+	elif has_to_process_anchor():
 		process_anchor(delta)
-	else:
-		arrived = process_arrive(delta, anchor_position)
-	
+	elif has_to_go_to_anchor():
+		if process_travel(delta, anchor):
+			arrived_to_anchor = true
+
 	velocity = fly_velocity
 	move_and_slide()
 
-func process_anchor(delta):
-	if anchor_mode == AnchorMode.HANG:		
-		process_hang(delta)
-	if anchor_mode == AnchorMode.ORIENT:
-		process_orient(delta)
-	if anchor_mode == AnchorMode.EXPLORE:
-		process_explore(delta)
-
-func process_hang(delta):	
-	if hung: return
-	hung = land_on_point(delta, anchor_position)
-
-func land_on_point(delta, point: Vector3):
-	if position.distance_to(point) < hang_threshold:		
-		fly_velocity = Vector3.ZERO
-		return true
+func has_to_go_home():
+	return hive != null and nectar >= NECTAR_CAPACITY
 	
-	if fly_velocity.dot(fly_destination - position) < 0 or position.distance_to(fly_destination) < hang_threshold:
-		var remaining = point - fly_destination
+func has_to_process_anchor():
+	return arrived_to_anchor
+
+func has_to_go_to_anchor():
+	return not arrived_to_anchor
+
+func process_go_home(delta):
+	if process_travel(delta, hive.position):
+		if process_land_on_point(delta, hive.position):
+			if enter_hive():
+				queue_free()
+
+func enter_hive():
+	give_nectar_to_hive(hive, self.nectar)
+	hive.publish({
+		'type': 'memory_nectar',
+		'payload': memory_nectar
+	})
+	hive.receive_bee(self)
+	return true
+
+func give_nectar_to_hive(hive: Hive, amount = 1):
+	var available = clamp(amount, 0, self.nectar)
+	self.nectar -= available
+	hive.receive_nectar(available)
+	
+func process_anchor(delta):
+	match anchor_mode:
+		AnchorMode.HANG:
+			if process_land_on_point(delta, anchor):
+				return false
+		AnchorMode.ORIENT:
+			if process_orient(delta, anchor):
+				anchor_mode = AnchorMode.HANG
+		AnchorMode.EXPLORE:
+			if process_explore(delta):
+				anchor_mode = AnchorMode.HANG
+
+func process_land_on_point(delta, point: Vector3):
+	if process_fly_to_destination(delta, point, LANDING_FLIGHT_SETTINGS):
+		fly_velocity = Vector3.ZERO
+		return true	
+	
+	if fly_velocity.dot(current_destination - position) < 0 or position.distance_to(current_destination) < LANDING_FLIGHT_SETTINGS.threshold:
+		var remaining = point - current_destination
 		var half_remaining = remaining / 2
 		var deviation = Vector3.FORWARD.rotated(Vector3.UP, randf() * PI * 2) * half_remaining.length()		
-		set_fly_destination(fly_destination + half_remaining + deviation)
-	
-	process_fly_to_destination(delta, HANG_MAX_SPEED)
+		
+		current_destination = current_destination + half_remaining + deviation
+
 	return false
 
-func process_orient(delta):
-	if spin_count < SPIN_REQUIRED:
-		process_spin(delta)
-	else:
-		process_eight(delta)
+func process_orient(delta, origin):
+	return process_spin(delta, origin) and process_eight(delta, origin)
 
-func process_spin(delta):
-	if position.distance_to(fly_destination) < SPIN_THRESHOLD:
-		var new_destination = anchor_position + (fly_destination - anchor_position).rotated(Vector3.UP, PI / 4).normalized() * spin_radius		
-		set_fly_destination(new_destination)
+func process_spin(delta, origin):
+	if spin_count >= SPIN_REQUIRED:
+		return true
+	if process_fly_to_destination(delta, current_destination, SPIN_FLIGHT_SETTINGS):
+		if origin == current_destination:
+			current_destination = origin + Vector3.FORWARD
+		current_destination = origin + (current_destination - origin).rotated(Vector3.UP, PI / 4).normalized() * SPIN_RADIUS
 		spin_count += 1
-	
-	process_fly_to_destination(delta, SPIN_MAX_SPEED)
 
-func process_eight(delta):
-	if position.distance_to(fly_destination) < EIGHT_THRESHOLD:
-		var eight_origin = anchor_position + Vector3.UP * EIGHT_HEIGHT
-		if fly_destination.y < eight_origin.y:
-			if fly_destination.x < eight_origin.x:
-				set_fly_destination(eight_origin + Vector3(EIGHT_RADIUS, EIGHT_RADIUS, randf_range(-0.3, 0.3)))
+	return false
+
+func process_eight(delta, origin):
+	if eight_count >= EIGHT_REQUIRED:
+		return true
+
+	if process_fly_to_destination(delta, current_destination, EIGHT_FLIGHT_SETTINGS):
+		var eight_origin = origin + Vector3.UP * EIGHT_HEIGHT
+		if current_destination.y < eight_origin.y:
+			if current_destination.x < eight_origin.x:
+				current_destination = eight_origin + Vector3(EIGHT_RADIUS, EIGHT_RADIUS, randf_range(-0.3, 0.3))
 			else:
-				set_fly_destination(eight_origin + Vector3(-EIGHT_RADIUS, -EIGHT_RADIUS, randf_range(-0.3, 0.3)))
+				current_destination = eight_origin + Vector3(-EIGHT_RADIUS, -EIGHT_RADIUS, randf_range(-0.3, 0.3))
 		else:
-			if fly_destination.x < eight_origin.x:
-				set_fly_destination(eight_origin + Vector3(EIGHT_RADIUS, -EIGHT_RADIUS, randf_range(-0.3, 0.3)))
+			if current_destination.x < eight_origin.x:
+				current_destination = eight_origin + Vector3(EIGHT_RADIUS, -EIGHT_RADIUS, randf_range(-0.3, 0.3))
 			else:
-				set_fly_destination(eight_origin + Vector3(-EIGHT_RADIUS, EIGHT_RADIUS, randf_range(-0.3, 0.3)))
-
-	process_fly_to_destination(delta, EIGHT_MAX_SPEED, EIGHT_DUMP)
+				current_destination = eight_origin + Vector3(-EIGHT_RADIUS, EIGHT_RADIUS, randf_range(-0.3, 0.3))
+				eight_count += 1
 
 func process_explore(delta):
-	if nectar_source == null:
-		var unvisited = vision_nectar.filter(func (source): return not visited_nectar.has(source.position))
-		if unvisited.size() > 0:
-			nectar_source = unvisited[0]
-		elif unvisited_nectar.size() > 0:
-			explore_destination = unvisited_nectar.keys()[0]
-
-		if process_arrive(delta, explore_destination):
-			if anchor_position.distance_to(position) > EXPLORE_RADIUS:
-				explore_destination = anchor_position
-			else:
-				explore_destination = position + (Vector3.FORWARD * EXPLORE_SEGMENT_LENGTH).rotated(Vector3.UP, randf() * PI * 2)
-
-	if nectar_source and not nectar_landed:
-		nectar_landed = land_on_point(delta, nectar_source.position)
-		if nectar_landed:
-			visited_nectar[nectar_source.position] = nectar_source.amount
-			unvisited_nectar.erase(nectar_source.position)
+	if process_search_nectar_target(delta):
+		if process_land_on_point(delta, target_nectar_source.position):
+			visited_nectar[target_nectar_source.position] = target_nectar_source.amount
+			unvisited_nectar.erase(target_nectar_source.position)
 			pick_nectar_timeout = PICK_NECTAR_TIME
+			if process_gather_nectar(delta):
+				target_nectar_source = null
 
-	if nectar_source and nectar_landed:
-		process_gather_nectar(delta)
+func process_search_nectar_target(delta):
+	if target_nectar_source != null:
+		return true
+
+	if process_look_for_unvisited_nectar():
+		return true
+
+	if process_return_to_unvisited_nectar(delta):
+		return false
+
+	return process_search_nectar_sources(delta)
+
+func process_look_for_unvisited_nectar():
+	var unvisited = vision_nectar.filter(func (source): return not visited_nectar.has(source.position))
+	if unvisited.size() > 0:
+		target_nectar_source = unvisited[0]
+		return true
+	return false
+
+func process_return_to_unvisited_nectar(delta):
+	if unvisited_nectar.size() <= 0:
+		return false
+	
+	return process_travel(delta, unvisited_nectar.keys()[0])
+
+func process_search_nectar_sources(delta):
+	if process_travel(delta, current_travel_destination):
+		choose_next_search_point()
+
+	return false
+
+func choose_next_search_point():
+	if anchor.distance_to(position) > EXPLORE_RADIUS:
+		current_travel_destination = anchor
+	else:
+		current_travel_destination = position + (Vector3.FORWARD * EXPLORE_SEGMENT_LENGTH).rotated(Vector3.UP, randf() * PI * 2)	
 
 func process_gather_nectar(delta):
 	pick_nectar_timeout -= delta
 	if pick_nectar_timeout <= 0:
-		_add_nectar(nectar_source.take(1))
-		nectar_landed = false
-		nectar_source = null
+		self.nectar += target_nectar_source.take(1)
+		return true
+	return false
 
-func process_arrive(delta, final: Vector3):
-	var position_2d = Vector2(position.x, position.z)
-	var final_2d = Vector2(final.x, final.z)
-	var fly_destination_2d = Vector2(fly_destination.x, fly_destination.z)
-	
-	if position_2d.distance_to(final_2d) < arrived_threshold:		
+func process_travel(delta, final: Vector3):
+	if TRAVEL_FLIGHT_SETTINGS.has_reached_2(position, final):
 		return	true
 
-	var close_enugh = position_2d.distance_to(fly_destination_2d) < destination_threshold
-	var left_behind = position_2d.distance_to(final_2d) <= fly_destination_2d.distance_to(final_2d)
-	if close_enugh or left_behind:
-		set_fly_destination(next_travel_destination(final))
+	var has_reached = TRAVEL_FLIGHT_SETTINGS.has_reached_2(position, current_destination)
+	var left_behind = _has_left_behind_2(final)
+
+	if has_reached or left_behind:
+		current_destination = next_travel_destination(final)
+
+	if process_fly_to_destination(delta, current_destination, TRAVEL_FLIGHT_SETTINGS):
+		current_destination = next_travel_destination(final)
 	
-	process_fly_to_destination(delta, TRAVEL_MAX_SPEED)
+func _has_left_behind_2(final: Vector3):
+	var current_destination_2d = Vector2(current_destination.x, current_destination.z)
+	var position_2d = Vector2(position.x, position.z)
+	var final_2d = Vector2(final.x, final.z)
+	
+	return position_2d.distance_to(final_2d) <= current_destination_2d.distance_to(final_2d)
 
 func next_travel_destination(final: Vector3):
 	var remaining = final - position
 	var remaining_distance = remaining.length()
-	var next = remaining.normalized() * fly_segment_length
+	var next = remaining.normalized() * TRAVEL_SEGMENT_LENGTH
 	if next.length() > remaining_distance:
 		next = remaining
 	
-	var deviation = Vector3.FORWARD.rotated(Vector3.UP, randf() * PI * 2) * max_deviation	
+	var deviation = Vector3.FORWARD.rotated(Vector3.UP, randf() * PI * 2) * TRAVEL_DEVIATION	
 	
 	next = position + next + deviation
 	var surface_height = Vector3.UP * _get_height(next)
@@ -204,48 +294,24 @@ func next_travel_destination(final: Vector3):
 	
 	return next
 
-func process_fly_to_destination(delta, max_speed, dump = DEFAULT_DUMP):
-	if fly_destination != position:
-		look_at(fly_destination)
-	var force = (fly_destination - position).normalized() * fly_acceleration * delta
-	#var force = Vector3.FORWARD.rotated(Vector3.UP, rotation.y) * fly_acceleration * delta
+func process_fly_to_destination(delta, destination: Vector3, settings: FlightSettings):
+	if settings.has_reached_3(position, destination):
+		return true
+
+	if destination != position:
+		look_at(destination)
+	var force = (destination - position).normalized() * settings.acceleration * delta
 	fly_velocity += force
 
-	if dump:
-		var dot = fly_velocity.dot(fly_destination - position)
+	if settings.dump > 0:
+		var dot = fly_velocity.dot(destination - position)
 		if dot < 0:
-			fly_velocity -= fly_velocity.normalized() * dump * delta
+			fly_velocity -= fly_velocity.normalized() * settings.dump * delta
 
-	if fly_velocity.length() > max_speed:
-		fly_velocity -= fly_velocity.normalized() * dump * delta	
+	if fly_velocity.length() > settings.max_speed:
+		fly_velocity -= fly_velocity.normalized() * settings.dump * delta
 
-func _add_nectar(amount):
-	self.nectar += amount
-
-func set_fly_destination(destination: Vector3):
-	fly_destination = destination
-	$FlyDestination.position = fly_destination
-
-func set_anchor(position: Vector3):
-	anchor_position = position
-	$Anchor.position = anchor_position	
-	arrived = false
-	hung = false
-	nectar_landed = false
-	nectar_source = null
-	explore_destination = anchor_position
-	spin_count = 0
-
-func set_anchor_mode(mode: AnchorMode):
-	anchor_mode = mode
-	if mode == AnchorMode.HANG:	
-		hung = false
-		$Anchor/Label.text = 'Hang'
-	elif mode == AnchorMode.EXPLORE:
-		$Anchor/Label.text = 'Explore'
-	elif mode == AnchorMode.ORIENT:
-		spin_count = 0
-		$Anchor/Label.text = 'Orient'
+	return false
 
 func _get_height(position):
 	return 0

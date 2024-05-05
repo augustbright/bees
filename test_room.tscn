@@ -38,7 +38,7 @@ transform = Transform3D(0.707107, -3.09086e-08, 0.707107, -0.707107, -3.09086e-0
 shadow_enabled = true
 
 [node name="Camera3D" type="Camera3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 0.258819, 0.965926, 0, -0.965926, 0.258819, -1, 15, 2)
+transform = Transform3D(1, 0, 0, 0, 0.258819, 0.965926, 0, -0.965926, 0.258819, -1, 8, 2)
 
 [node name="Bee" parent="." instance=ExtResource("4_j0lmi")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.08165e-12, 2.08165e-12, 2.08165e-12)
@@ -68,6 +68,9 @@ item_2/text = "Explore"
 
 [node name="NectarSource" parent="Nectars" instance=ExtResource("5_cc0v8")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 2.08165e-12, 2.08165e-12)
+
+[node name="NectarSource13" parent="Nectars" instance=ExtResource("5_cc0v8")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 2.08165e-12, 2.08165e-12)
 
 [node name="NectarSource2" parent="Nectars" instance=ExtResource("5_cc0v8")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 2.08165e-12, 1)

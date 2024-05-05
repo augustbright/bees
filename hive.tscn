@@ -20,3 +20,13 @@ texture = ExtResource("1_a5ok6")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
 shape = SubResource("SphereShape3D_8pdkx")
+
+[node name="NectarLabel" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.08165e-12, 2, 2.08165e-12)
+billboard = 1
+text = "Nectar: 0"
+
+[node name="BeesLabel" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.08165e-12, 1.5, 2.08165e-12)
+billboard = 1
+text = "Bees: 0"
