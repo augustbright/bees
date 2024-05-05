@@ -1,0 +1,38 @@
+[gd_scene load_steps=6 format=3 uid="uid://dutjur2gn4wif"]
+
+[ext_resource type="Script" path="res://nectar_source.gd" id="1_0nqmx"]
+[ext_resource type="Texture2D" uid="uid://cng2l05aar8vu" path="res://art/kenney_particle-pack/PNG (Transparent)/circle_01.png" id="2_w7we7"]
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_cr0yo"]
+radius = 0.191334
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_qwrgp"]
+shading_mode = 0
+
+[sub_resource type="BoxMesh" id="BoxMesh_n53da"]
+material = SubResource("StandardMaterial3D_qwrgp")
+
+[node name="NectarSource" type="Area3D" groups=["nectar"]]
+script = ExtResource("1_0nqmx")
+metadata/_edit_lock_ = true
+
+[node name="Sprite3D" type="Sprite3D" parent="."]
+transform = Transform3D(0.1, 0, 0, 0, 0.1, 0, 0, 0, 0.1, 2.08165e-12, 0.01, 2.08165e-12)
+modulate = Color(0.109804, 1, 0.0156863, 1)
+axis = 1
+texture = ExtResource("2_w7we7")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("SphereShape3D_cr0yo")
+
+[node name="Label3D" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.08165e-12, 1, 2.08165e-12)
+billboard = 1
+double_sided = false
+text = "10
+"
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+transform = Transform3D(0.01, 0, 0, 0, 1, 0, 0, 0, 0.01, 2.08165e-12, 0.5, 2.08165e-12)
+cast_shadow = 0
+mesh = SubResource("BoxMesh_n53da")

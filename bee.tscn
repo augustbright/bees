@@ -1,0 +1,83 @@
+[gd_scene load_steps=10 format=3 uid="uid://tpeo68u41qm3"]
+
+[ext_resource type="Script" path="res://bee.gd" id="1_uweql"]
+[ext_resource type="Texture2D" uid="uid://7bfrrqay7rvk" path="res://art/kenney_particle-pack/PNG (Transparent)/magic_05.png" id="2_i71y5"]
+[ext_resource type="BoxMesh" uid="uid://bkq1c5iftt31w" path="res://art/anchor.tres" id="2_tbkf0"]
+
+[sub_resource type="PrismMesh" id="PrismMesh_psq8g"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_u5t52"]
+albedo_color = Color(1, 0.6, 0, 1)
+emission_enabled = true
+emission = Color(0.964706, 0.541176, 0.145098, 1)
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_8fdbt"]
+radius = 0.0603365
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_35weg"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_vneld"]
+shading_mode = 0
+disable_ambient_light = true
+albedo_color = Color(0, 1, 1, 1)
+disable_receive_shadows = true
+
+[sub_resource type="ImmediateMesh" id="ImmediateMesh_n2bnf"]
+
+[node name="Bee" type="CharacterBody3D"]
+collision_layer = 2
+collision_mask = 4
+script = ExtResource("1_uweql")
+metadata/_edit_lock_ = true
+
+[node name="Body" type="MeshInstance3D" parent="."]
+transform = Transform3D(0.05, -6.97575e-17, -1.5246e-24, 0, -4.37114e-09, 0.05, -3.48787e-17, -0.1, -2.18557e-09, 0, 0, 0)
+mesh = SubResource("PrismMesh_psq8g")
+surface_material_override/0 = SubResource("StandardMaterial3D_u5t52")
+
+[node name="Anchor" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.08165e-12, 2.08165e-12, 2.08165e-12)
+top_level = true
+
+[node name="AnchorMesh" type="MeshInstance3D" parent="Anchor"]
+transform = Transform3D(0.02, -6.97574e-16, 6.97574e-18, 6.97574e-18, 2, -6.97574e-18, -6.97574e-18, 6.97574e-16, 0.02, 2.08165e-12, 1, 2.08165e-12)
+cast_shadow = 0
+mesh = ExtResource("2_tbkf0")
+skeleton = NodePath("../..")
+
+[node name="Label" type="Label3D" parent="Anchor"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
+billboard = 1
+text = "Hang"
+
+[node name="Base" type="MeshInstance3D" parent="Anchor"]
+transform = Transform3D(0.1, 0, 0, 0, 0.1, 0, 0, 0, 0.1, 0, 0, 0)
+mesh = ExtResource("2_tbkf0")
+
+[node name="FlyDestination" type="Node3D" parent="."]
+top_level = true
+
+[node name="Sprite3D" type="Sprite3D" parent="FlyDestination"]
+transform = Transform3D(0.05, 0, 0, 0, 0.05, 0, 0, 0, 0.05, 2.08165e-12, 0.1, 2.08165e-12)
+modulate = Color(0.976471, 0, 1, 1)
+billboard = 1
+texture = ExtResource("2_i71y5")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("SphereShape3D_8fdbt")
+
+[node name="Vision" type="Area3D" parent="."]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Vision"]
+transform = Transform3D(10, 0, 0, 0, 10, 0, 0, 0, 10, 0, 0, 0)
+shape = SubResource("SphereShape3D_35weg")
+
+[node name="DebugMesh" type="MeshInstance3D" parent="Vision"]
+top_level = true
+material_override = SubResource("StandardMaterial3D_vneld")
+cast_shadow = 0
+mesh = SubResource("ImmediateMesh_n2bnf")
+skeleton = NodePath("../..")
+
+[connection signal="area_entered" from="Vision" to="." method="_on_vision_area_entered"]
+[connection signal="area_exited" from="Vision" to="." method="_on_vision_area_exited"]

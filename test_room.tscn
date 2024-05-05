@@ -1,0 +1,108 @@
+[gd_scene load_steps=10 format=3 uid="uid://l0svkb5gla7k"]
+
+[ext_resource type="Script" path="res://test_room.gd" id="1_h3u27"]
+[ext_resource type="PackedScene" uid="uid://8dercbwd1qmg" path="res://space_click_effect.tscn" id="2_1qk7b"]
+[ext_resource type="Texture2D" uid="uid://bjbevd5rc7d7r" path="res://art/kenney_prototype_textures/dark/texture_01.png" id="3_j4ha2"]
+[ext_resource type="PackedScene" uid="uid://tpeo68u41qm3" path="res://bee.tscn" id="4_j0lmi"]
+[ext_resource type="PackedScene" uid="uid://dutjur2gn4wif" path="res://nectar_source.tscn" id="5_cc0v8"]
+[ext_resource type="PackedScene" uid="uid://bbr3vexolx00k" path="res://hive.tscn" id="6_0ipwi"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_s251s"]
+size = Vector3(59, 1, 59)
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_lhol6"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_2mfyy"]
+albedo_texture = ExtResource("3_j4ha2")
+uv1_scale = Vector3(30, 30, 30)
+
+[node name="TestRoom" type="Node3D"]
+script = ExtResource("1_h3u27")
+space_click_effect = ExtResource("2_1qk7b")
+
+[node name="StaticBody3D" type="StaticBody3D" parent="."]
+collision_layer = 4
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.08165e-12, -0.5, 2.08165e-12)
+shape = SubResource("BoxShape3D_s251s")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="StaticBody3D"]
+transform = Transform3D(30, 0, 0, 0, 1, 0, 0, 0, 30, 0, 0, 0)
+mesh = SubResource("PlaneMesh_lhol6")
+surface_material_override/0 = SubResource("StandardMaterial3D_2mfyy")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.707107, -3.09086e-08, 0.707107, -0.707107, -3.09086e-08, 0.707107, 0, -1, -4.37114e-08, -1, 15, -2)
+shadow_enabled = true
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.258819, 0.965926, 0, -0.965926, 0.258819, -1, 15, 2)
+
+[node name="Bee" parent="." instance=ExtResource("4_j0lmi")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.08165e-12, 2.08165e-12, 2.08165e-12)
+
+[node name="Control" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="AnchorModeSelector" type="ItemList" parent="Control" groups=["GUI"]]
+layout_mode = 1
+offset_right = 100.0
+offset_bottom = 104.0
+mouse_default_cursor_shape = 2
+theme_override_font_sizes/font_size = 20
+allow_search = false
+auto_height = true
+item_count = 3
+item_0/text = "Hang"
+item_1/text = "Orient"
+item_2/text = "Explore"
+
+[node name="Nectars" type="Node3D" parent="."]
+
+[node name="NectarSource" parent="Nectars" instance=ExtResource("5_cc0v8")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 2.08165e-12, 2.08165e-12)
+
+[node name="NectarSource2" parent="Nectars" instance=ExtResource("5_cc0v8")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 2.08165e-12, 1)
+
+[node name="NectarSource3" parent="Nectars" instance=ExtResource("5_cc0v8")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16, 2.08165e-12, -3)
+
+[node name="NectarSource4" parent="Nectars" instance=ExtResource("5_cc0v8")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14, 2.08165e-12, 2.08165e-12)
+
+[node name="NectarSource5" parent="Nectars" instance=ExtResource("5_cc0v8")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14, 2.08165e-12, 1)
+
+[node name="NectarSource6" parent="Nectars" instance=ExtResource("5_cc0v8")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14, 2.08165e-12, -3)
+
+[node name="NectarSource7" parent="Nectars" instance=ExtResource("5_cc0v8")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18, 2.08165e-12, -22)
+
+[node name="NectarSource8" parent="Nectars" instance=ExtResource("5_cc0v8")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18, 2.08165e-12, -21)
+
+[node name="NectarSource9" parent="Nectars" instance=ExtResource("5_cc0v8")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18, 2.08165e-12, -25)
+
+[node name="NectarSource10" parent="Nectars" instance=ExtResource("5_cc0v8")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 19, 2.08165e-12, -24)
+
+[node name="NectarSource11" parent="Nectars" instance=ExtResource("5_cc0v8")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 19, 2.08165e-12, -23)
+
+[node name="NectarSource12" parent="Nectars" instance=ExtResource("5_cc0v8")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 19, 2.08165e-12, -27)
+
+[node name="Hive" parent="." instance=ExtResource("6_0ipwi")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -5)
+
+[connection signal="item_selected" from="Control/AnchorModeSelector" to="." method="_on_anchor_mode_selector_item_selected"]

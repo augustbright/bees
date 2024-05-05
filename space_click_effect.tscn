@@ -1,0 +1,47 @@
+[gd_scene load_steps=8 format=3 uid="uid://8dercbwd1qmg"]
+
+[ext_resource type="Texture2D" uid="uid://bqb4moq5p3ly2" path="res://art/kenney_particle-pack/PNG (Transparent)/circle_05.png" id="1_xowem"]
+[ext_resource type="Script" path="res://space_click_effect.gd" id="2_w2fuf"]
+
+[sub_resource type="Curve" id="Curve_nyax8"]
+_data = [Vector2(0, 1), 0.0, 0.0, 0, 0, Vector2(0.843636, 0.40129), 0.0, 0.0, 0, 0]
+point_count = 2
+
+[sub_resource type="CurveTexture" id="CurveTexture_knh48"]
+curve = SubResource("Curve_nyax8")
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_dqdvp"]
+direction = Vector3(2.08165e-12, 1, 2.08165e-12)
+spread = 52.152
+initial_velocity_min = 2.0
+initial_velocity_max = 2.0
+gravity = Vector3(2.08165e-12, 2.08165e-12, 2.08165e-12)
+damping_min = 1.0
+damping_max = 2.0
+scale_min = 5.0
+scale_max = 5.0
+scale_curve = SubResource("CurveTexture_knh48")
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_kkf0u"]
+transparency = 1
+albedo_color = Color(1, 0, 1, 1)
+albedo_texture = ExtResource("1_xowem")
+emission_enabled = true
+emission = Color(0.94902, 0.286275, 0.878431, 1)
+emission_energy_multiplier = 4.19
+
+[sub_resource type="QuadMesh" id="QuadMesh_fjsmp"]
+material = SubResource("StandardMaterial3D_kkf0u")
+size = Vector2(0.1, 0.1)
+
+[node name="SpaceClickEffect" type="GPUParticles3D"]
+emitting = false
+amount = 10
+one_shot = true
+explosiveness = 1.0
+transform_align = 1
+process_material = SubResource("ParticleProcessMaterial_dqdvp")
+draw_pass_1 = SubResource("QuadMesh_fjsmp")
+script = ExtResource("2_w2fuf")
+
+[connection signal="finished" from="." to="." method="_on_finished"]
