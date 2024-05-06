@@ -5,19 +5,6 @@ const Hive = preload("res://hive.gd")
 const FlightSettings = preload('res://fight_settings.gd')
 
 var hive: Hive = null
-var anchor: Vector3:
-	set(position):
-		anchor = position
-		$Anchor.position = anchor
-		arrived_to_anchor = false
-		#hung = false
-		#nectar_landed = false
-		target_nectar_source = null
-		spin_count = 0
-
-####	TRAVELING FLIGHT
-var arrived_to_anchor = false
-#var hung = false
 
 var current_destination: Vector3:
 	set(value):
@@ -40,28 +27,13 @@ const TRAVEL_DEVIATION = 1
 
 ####	ORIENTATION FLIGHT
 var spin_count = 0
-const SPIN_REQUIRED = 10
+const SPIN_REQUIRED = 3
 const SPIN_RADIUS = 1
 
 var eight_count = 0
-const EIGHT_REQUIRED = 10
+const EIGHT_REQUIRED = 3
 const EIGHT_HEIGHT = 2
 const EIGHT_RADIUS = 0.5
-
-enum AnchorMode { HANG, ORIENT, EXPLORE }
-var anchor_mode: AnchorMode:
-	set(mode):
-		anchor_mode = mode
-		match anchor_mode:
-			AnchorMode.HANG:
-				#hung = false
-				$Anchor/Label.text = 'Hang'
-			AnchorMode.EXPLORE:
-				$Anchor/Label.text = 'Explore'
-			AnchorMode.ORIENT:
-				spin_count = 0
-				eight_count = 0
-				$Anchor/Label.text = 'Orient'
 
 ####	NECTAR EXPLORING
 var vision_nectar: Array[NectarSource]
@@ -84,53 +56,93 @@ var nectar = 0:
 			$NectarLabel.hide()
 
 var target_nectar_source: NectarSource = null
-#var nectar_landed = false
+var is_sitting_on_source = false
 const PICK_NECTAR_TIME = 3
 var pick_nectar_timeout = 0
 
+var task_queue: Array[Dictionary] = []
+
+func task_orientation_flight(position: Vector3):
+	task_queue.clear()
+	spin_count = 0
+	eight_count = 0
+	task_queue.push_back({
+		'type': 'orientation',
+		'position': position
+	})
+
+func task_explore(position: Vector3):
+	task_queue.clear()
+	task_queue.push_back({
+		'type': 'explore',
+		'position': position
+	})
+
+func task_sit(position: Vector3):
+	task_queue.clear()
+	task_queue.push_back({
+		'type': 'sit',
+		'position': position
+	})
+	
+func task_gather_nectar(position: Vector3):
+	task_queue.clear()
+	task_queue.push_back({
+		'type': 'gather_nectar',
+		'position': position
+	})
+
 # Called when the node enters the scene tree for the first time.
 func _ready():
-	anchor_mode = AnchorMode.HANG
-	anchor = position
 	current_destination = position
 
 func _process(delta):
-	var mesh = $Vision/DebugMesh.mesh as ImmediateMesh
+	var mesh = $DebugMesh.mesh as ImmediateMesh
 	mesh.clear_surfaces()
 	if vision_nectar.size() > 0:
 		mesh.surface_begin(Mesh.PRIMITIVE_LINE_STRIP)
 		for nectar in vision_nectar:
-			mesh.surface_add_vertex(position)
-			mesh.surface_add_vertex(nectar.position)
+			mesh.surface_add_vertex(global_position)
+			mesh.surface_add_vertex(nectar.global_position)
 		mesh.surface_end()
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _physics_process(delta):
-	if has_to_go_home():
-		process_go_home(delta)
-	elif has_to_process_anchor():
-		process_anchor(delta)
-	elif has_to_go_to_anchor():
-		if process_travel(delta, anchor):
-			arrived_to_anchor = true
+	if process_task_queue(delta) and process_go_home(delta):
+		queue_free()
 
 	velocity = fly_velocity
 	move_and_slide()
 
-func has_to_go_home():
-	return hive != null and nectar >= NECTAR_CAPACITY
-	
-func has_to_process_anchor():
-	return arrived_to_anchor
+func process_task_queue(delta):
+	if task_queue.size() == 0:
+		return true
 
-func has_to_go_to_anchor():
-	return not arrived_to_anchor
+	var task = task_queue[0]
+	match task['type']:
+		'orientation':
+			if process_orient(delta, task['position']):
+				task_queue.pop_front()
+		'explore':
+			if process_explore(delta, task['position']):
+				task_queue.pop_front()
+		'sit':
+			if process_sit(delta, task['position']):
+				task_queue.pop_front()
+		'gather_nectar':
+			if process_gather_nectar(delta, task['position']):
+				task_queue.pop_front()
+		_: task_queue.pop_front()
+	return false
+
+func process_gather_nectar(delta, origin):
+	if nectar >= NECTAR_CAPACITY:
+		return true
+
+	return process_orient(delta, origin) and process_explore(delta, origin) and false
 
 func process_go_home(delta):
-	if process_travel(delta, hive.position):
-		if process_land_on_point(delta, hive.position):
-			if enter_hive():
-				queue_free()
+	return process_land_on_point(delta, hive.position) and enter_hive()
 
 func enter_hive():
 	give_nectar_to_hive(hive, self.nectar)
@@ -145,30 +157,24 @@ func give_nectar_to_hive(hive: Hive, amount = 1):
 	var available = clamp(amount, 0, self.nectar)
 	self.nectar -= available
 	hive.receive_nectar(available)
-	
-func process_anchor(delta):
-	match anchor_mode:
-		AnchorMode.HANG:
-			if process_land_on_point(delta, anchor):
-				return false
-		AnchorMode.ORIENT:
-			if process_orient(delta, anchor):
-				anchor_mode = AnchorMode.HANG
-		AnchorMode.EXPLORE:
-			if process_explore(delta):
-				anchor_mode = AnchorMode.HANG
+
+func process_sit(delta, origin):
+	return process_land_on_point(delta, origin) and false
 
 func process_land_on_point(delta, point: Vector3):
-	if process_fly_to_destination(delta, point, LANDING_FLIGHT_SETTINGS):
-		fly_velocity = Vector3.ZERO
-		return true	
-	
-	if fly_velocity.dot(current_destination - position) < 0 or position.distance_to(current_destination) < LANDING_FLIGHT_SETTINGS.threshold:
-		var remaining = point - current_destination
-		var half_remaining = remaining / 2
-		var deviation = Vector3.FORWARD.rotated(Vector3.UP, randf() * PI * 2) * half_remaining.length()		
+	if is_sitting_on_source: return true
+
+	if process_travel(delta, point):
+		if process_fly_to_destination(delta, point, LANDING_FLIGHT_SETTINGS):
+			fly_velocity = Vector3.ZERO
+			return true	
 		
-		current_destination = current_destination + half_remaining + deviation
+		if fly_velocity.dot(current_destination - position) < 0 or position.distance_to(current_destination) < LANDING_FLIGHT_SETTINGS.threshold:
+			var remaining = point - current_destination
+			var half_remaining = remaining / 2
+			var deviation = Vector3.FORWARD.rotated(Vector3.UP, randf() * PI * 2) * half_remaining.length()		
+			
+			current_destination = current_destination + half_remaining + deviation
 
 	return false
 
@@ -178,11 +184,12 @@ func process_orient(delta, origin):
 func process_spin(delta, origin):
 	if spin_count >= SPIN_REQUIRED:
 		return true
-	if process_fly_to_destination(delta, current_destination, SPIN_FLIGHT_SETTINGS):
-		if origin == current_destination:
-			current_destination = origin + Vector3.FORWARD
-		current_destination = origin + (current_destination - origin).rotated(Vector3.UP, PI / 4).normalized() * SPIN_RADIUS
-		spin_count += 1
+	if process_travel(delta, origin):
+		if process_fly_to_destination(delta, current_destination, SPIN_FLIGHT_SETTINGS):
+			if origin == current_destination:
+				current_destination = origin + Vector3.FORWARD
+			current_destination = origin + (current_destination - origin).rotated(Vector3.UP, PI / 4).normalized() * SPIN_RADIUS
+			spin_count += 1
 
 	return false
 
@@ -204,26 +211,39 @@ func process_eight(delta, origin):
 				current_destination = eight_origin + Vector3(-EIGHT_RADIUS, EIGHT_RADIUS, randf_range(-0.3, 0.3))
 				eight_count += 1
 
-func process_explore(delta):
-	if process_search_nectar_target(delta):
+func process_explore(delta, origin):
+	if process_search_nectar_target(delta, origin):
 		if process_land_on_point(delta, target_nectar_source.position):
-			visited_nectar[target_nectar_source.position] = target_nectar_source.amount
-			unvisited_nectar.erase(target_nectar_source.position)
-			pick_nectar_timeout = PICK_NECTAR_TIME
-			if process_gather_nectar(delta):
+			if !is_sitting_on_source and target_nectar_source.place <= 0:
+				visited_nectar[target_nectar_source.position] = target_nectar_source.amount
+				unvisited_nectar.erase(target_nectar_source.position)
 				target_nectar_source = null
+				return false
 
-func process_search_nectar_target(delta):
+			if pick_nectar_timeout <= 0:
+				visited_nectar[target_nectar_source.position] = target_nectar_source.amount
+				unvisited_nectar.erase(target_nectar_source.position)
+				pick_nectar_timeout = PICK_NECTAR_TIME
+				target_nectar_source.place -= 1
+				is_sitting_on_source = true
+
+			if process_pick_nectar(delta):
+				target_nectar_source.place += 1
+				target_nectar_source = null
+				is_sitting_on_source = false
+
+func process_search_nectar_target(delta, origin):
 	if target_nectar_source != null:
 		return true
 
 	if process_look_for_unvisited_nectar():
 		return true
 
-	if process_return_to_unvisited_nectar(delta):
-		return false
-
-	return process_search_nectar_sources(delta)
+	if unvisited_nectar.size() >= 0:
+		if process_return_to_unvisited_nectar(delta):
+			return false
+	else:
+		return process_search_nectar_sources(delta, origin)
 
 func process_look_for_unvisited_nectar():
 	var unvisited = vision_nectar.filter(func (source): return not visited_nectar.has(source.position))
@@ -238,19 +258,19 @@ func process_return_to_unvisited_nectar(delta):
 	
 	return process_travel(delta, unvisited_nectar.keys()[0])
 
-func process_search_nectar_sources(delta):
+func process_search_nectar_sources(delta, origin):
 	if process_travel(delta, current_travel_destination):
-		choose_next_search_point()
+		choose_next_search_point(origin)
 
 	return false
 
-func choose_next_search_point():
-	if anchor.distance_to(position) > EXPLORE_RADIUS:
-		current_travel_destination = anchor
+func choose_next_search_point(origin):
+	if origin.distance_to(position) > EXPLORE_RADIUS:
+		current_travel_destination = origin
 	else:
-		current_travel_destination = position + (Vector3.FORWARD * EXPLORE_SEGMENT_LENGTH).rotated(Vector3.UP, randf() * PI * 2)	
+		current_travel_destination = position + (Vector3.FORWARD * EXPLORE_SEGMENT_LENGTH).rotated(Vector3.UP, randf() * PI * 2)
 
-func process_gather_nectar(delta):
+func process_pick_nectar(delta):
 	pick_nectar_timeout -= delta
 	if pick_nectar_timeout <= 0:
 		self.nectar += target_nectar_source.take(1)

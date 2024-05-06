@@ -1,6 +1,7 @@
 extends Area3D
 
 @export var amount = 5
+var place = 2
 
 # Called when the node enters the scene tree for the first time.
 func _ready():

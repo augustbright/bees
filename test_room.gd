@@ -7,7 +7,6 @@ const CAM_SPEED = 5
 
 # Called when the node enters the scene tree for the first time.
 func _ready():
-	set_anchor_mode(0)
 	$Bee.hive = $Hive
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
@@ -29,8 +28,9 @@ func _process(delta):
 	cam_velocity = cam_velocity.normalized() * CAM_SPEED * delta
 	$Camera3D.position += cam_velocity
 
-func _physics_process(delta):
-	if Input.is_action_just_pressed("click") and cursor_on_scene():
+func _physics_process(delta):	
+	var selected_task_items = $Control/V/AnchorModeSelector.get_selected_items()
+	if selected_task_items.size() > 0 and Input.is_action_just_pressed("click") and cursor_on_scene():
 		var space_state = get_world_3d().direct_space_state
 		var intersection = raycast()
 		
@@ -40,7 +40,11 @@ func _physics_process(delta):
 			effect.emitting = true
 			add_child(effect)
 			
-			$Bee.anchor = intersection.position
+			var selected_task_item = $Control/V/AnchorModeSelector.get_item_text(selected_task_items[0])
+			match selected_task_item:
+				'Sit': $Bee.task_sit(intersection.position)
+				'Orient': $Bee.task_orientation_flight(intersection.position)
+				'Explore': $Bee.task_explore(intersection.position)
 
 func raycast():
 	var space_state = get_world_3d().direct_space_state
@@ -57,9 +61,5 @@ func cursor_on_scene():
 func has_cursor(control: Control):
 	return control.get_global_rect().has_point(get_viewport().get_mouse_position())
 
-func _on_anchor_mode_selector_item_selected(index):
-	set_anchor_mode(index)
-
-func set_anchor_mode(index):
-	$Bee.anchor_mode = index
-	$Control/AnchorModeSelector.select(index)
+func _on_emit_bee_button_pressed():
+	$Hive.emit_bee()

@@ -41,7 +41,7 @@ shadow_enabled = true
 transform = Transform3D(1, 0, 0, 0, 0.258819, 0.965926, 0, -0.965926, 0.258819, -1, 8, 2)
 
 [node name="Bee" parent="." instance=ExtResource("4_j0lmi")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.08165e-12, 2.08165e-12, 2.08165e-12)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -25, 2.08165e-12, 2.08165e-12)
 
 [node name="Control" type="Control" parent="."]
 layout_mode = 3
@@ -51,29 +51,36 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="AnchorModeSelector" type="ItemList" parent="Control" groups=["GUI"]]
+[node name="V" type="VBoxContainer" parent="Control"]
 layout_mode = 1
-offset_right = 100.0
-offset_bottom = 104.0
+offset_right = 77.0
+offset_bottom = 139.0
+scale = Vector2(2, 2)
+
+[node name="AnchorModeSelector" type="ItemList" parent="Control/V" groups=["GUI"]]
+layout_mode = 2
 mouse_default_cursor_shape = 2
-theme_override_font_sizes/font_size = 20
 allow_search = false
 auto_height = true
 item_count = 3
-item_0/text = "Hang"
+item_0/text = "Sit"
 item_1/text = "Orient"
 item_2/text = "Explore"
+
+[node name="EmitBeeButton" type="Button" parent="Control/V"]
+layout_mode = 2
+text = "Emit Bee"
 
 [node name="Nectars" type="Node3D" parent="."]
 
 [node name="NectarSource" parent="Nectars" instance=ExtResource("5_cc0v8")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 2.08165e-12, 2.08165e-12)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -20, 2.08165e-12, 2.08165e-12)
 
 [node name="NectarSource13" parent="Nectars" instance=ExtResource("5_cc0v8")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 2.08165e-12, 2.08165e-12)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -20, 2.08165e-12, 2.08165e-12)
 
 [node name="NectarSource2" parent="Nectars" instance=ExtResource("5_cc0v8")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 2.08165e-12, 1)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -20, 2.08165e-12, 1)
 
 [node name="NectarSource3" parent="Nectars" instance=ExtResource("5_cc0v8")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16, 2.08165e-12, -3)
@@ -108,4 +115,5 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 19, 2.08165e-12, -27)
 [node name="Hive" parent="." instance=ExtResource("6_0ipwi")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -5)
 
-[connection signal="item_selected" from="Control/AnchorModeSelector" to="." method="_on_anchor_mode_selector_item_selected"]
+[connection signal="item_selected" from="Control/V/AnchorModeSelector" to="." method="_on_anchor_mode_selector_item_selected"]
+[connection signal="pressed" from="Control/V/EmitBeeButton" to="." method="_on_emit_bee_button_pressed"]
